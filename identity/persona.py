@@ -4,6 +4,8 @@ from Crypto.Hash import SHA256
 from twisted.web.resource import Resource
 from twisted.web.template import tags, renderElement
 
+from identity.basic import furnishRequestEmail, UnverifiedPeer
+
 import base64
 import json
 import posixpath
@@ -41,9 +43,15 @@ class BrowseridResource(Resource):
 
 class BrowseridAuthenticationResource(Resource):
     def render_GET(self, request):
+        try:
+            furnishRequestEmail(request)
+        except UnverifiedPeer:
+            script = 'navigator.id.raiseAuthenticationFailure()'
+        else:
+            script = 'navigator.id.completeAuthentication()'
         root = tags.head(
             tags.script(src='https://login.persona.org/authentication_api.js'),
-            tags.script('navigator.id.completeAuthentication()'))
+            tags.script(script))
         return renderElement(request, root)
 
 class BrowseridProvisioningResource(Resource):
