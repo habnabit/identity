@@ -10,13 +10,13 @@ import posixpath
 
 
 def b64uencode(s):
-        return base64.urlsafe_b64encode(str(s)).replace('=', '')
+    return base64.urlsafe_b64encode(str(s)).replace('=', '')
 
 def sign(payload, key):
-        encoded_header = b64uencode(json.dumps({'alg': 'RS256'}))
-        signing_input = encoded_header + '.' + b64uencode(json.dumps(payload))
-        signature = PKCS1_v1_5.new(key).sign(SHA256.new(signing_input))
-        return signing_input + '.' + b64uencode(signature)
+    encoded_header = b64uencode(json.dumps({'alg': 'RS256'}))
+    signing_input = encoded_header + '.' + b64uencode(json.dumps(payload))
+    signature = PKCS1_v1_5.new(key).sign(SHA256.new(signing_input))
+    return signing_input + '.' + b64uencode(signature)
 
 
 class BrowseridResource(Resource):
