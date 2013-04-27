@@ -3,20 +3,32 @@ from twisted.web.resource import Resource
 import json
 
 
+class UnverifiedPeer(Exception):
+    pass
+
+def furnishRequestEmail(request):
+    if not request.isSecure():
+        raise UnverifiedPeer('no-https')
+
+    cert = request.transport.getPeerCertificate()
+    if not cert:
+        raise UnverifiedPeer('no-cert')
+
+    components = dict(cert.get_subject().get_components())
+    if 'emailAddress' not in components:
+        raise UnverifiedPeer('no-email')
+
+    return components['emailAddress']
+
+
 class WhoamiResource(Resource):
     def _asJSON(self, request):
-        if not request.isSecure():
-            return {'status': 'unverified', 'reason': 'no-https'}
-
-        cert = request.transport.getPeerCertificate()
-        if not cert:
-            return {'status': 'unverified', 'reason': 'no-cert'}
-
-        components = dict(cert.get_subject().get_components())
-        if 'emailAddress' not in components:
-            return {'status': 'unverified', 'reason': 'no-email'}
-
-        return {'status': 'verified', 'email': components['emailAddress']}
+        try:
+            email = furnishRequestEmail(request)
+        except UnverifiedPeer as e:
+            return {'status': 'unverified', 'reason': e.args[0]}
+        else:
+            return {'status': 'verified', 'email': email}
 
     def render_GET(self, request):
         request.setHeader('content-type', 'application/json')
