@@ -1,6 +1,7 @@
 from Crypto.Signature import PKCS1_v1_5
 from Crypto.Hash import SHA256
 
+from twisted.python.filepath import FilePath
 from twisted.web.resource import Resource
 from twisted.web.template import tags, renderElement
 
@@ -9,6 +10,10 @@ from identity.basic import furnishRequestEmail, UnverifiedPeer
 import base64
 import json
 import posixpath
+
+
+with FilePath(__file__).sibling('js').child('authentication.js').open() as infile:
+    AUTHENTICATION_JS = infile.read()
 
 
 def b64uencode(s):
@@ -44,14 +49,13 @@ class BrowseridResource(Resource):
 class BrowseridAuthenticationResource(Resource):
     def render_GET(self, request):
         try:
-            furnishRequestEmail(request)
+            email = furnishRequestEmail(request)
         except UnverifiedPeer:
-            script = 'navigator.id.raiseAuthenticationFailure()'
-        else:
-            script = 'navigator.id.completeAuthentication()'
+            email = None
         root = tags.head(
             tags.script(src='https://login.persona.org/authentication_api.js'),
-            tags.script(script))
+            tags.script('var cert_email = %s;' % (json.dumps(email),)),
+            tags.script(AUTHENTICATION_JS))
         return renderElement(request, root)
 
 class BrowseridProvisioningResource(Resource):
