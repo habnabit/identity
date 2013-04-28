@@ -10,6 +10,7 @@ from identity.basic import furnishRequestEmail, UnverifiedPeer
 import base64
 import json
 import posixpath
+import time
 
 
 JS = {}
@@ -82,6 +83,7 @@ class BrowseridProvisioningResource(Resource):
         token = {
             'public-key': parameters['key'],
             'principal': {'email': email},
+            'iat': time.time(),
             'exp': min(60 * 60, parameters['duration']),
             'iss': request.getRequestHostname(),
         }
