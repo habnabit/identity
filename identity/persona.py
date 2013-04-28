@@ -80,11 +80,12 @@ class BrowseridProvisioningResource(Resource):
         parameters = json.load(request.content)
         email = furnishRequestEmail(request)
         assert parameters['email'] == email
+        now = int(time.time())
         token = {
             'public-key': parameters['key'],
             'principal': {'email': email},
-            'iat': time.time(),
-            'exp': min(60 * 60, parameters['duration']),
+            'iat': now * 1000,
+            'exp': (now + min(60 * 60, parameters['duration'])) * 1000,
             'iss': request.getRequestHostname(),
         }
         return sign(token, self.rsaKey)
