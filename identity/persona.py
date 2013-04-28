@@ -12,8 +12,10 @@ import json
 import posixpath
 
 
-with FilePath(__file__).sibling('js').child('authentication.js').open() as infile:
-    AUTHENTICATION_JS = infile.read()
+JS = {}
+for name in ['authentication.js', 'provisioning.js']:
+    with FilePath(__file__).sibling('js').child(name).open() as infile:
+        JS[name] = infile.read()
 
 
 def b64uencode(s):
@@ -24,6 +26,13 @@ def sign(payload, key):
     signing_input = encoded_header + '.' + b64uencode(json.dumps(payload))
     signature = PKCS1_v1_5.new(key).sign(SHA256.new(signing_input))
     return signing_input + '.' + b64uencode(signature)
+
+def certEmailScriptTag(request):
+    try:
+        email = furnishRequestEmail(request)
+    except UnverifiedPeer:
+        email = None
+    return tags.script('var cert_email = %s;' % (json.dumps(email),))
 
 
 class BrowseridResource(Resource):
@@ -48,14 +57,10 @@ class BrowseridResource(Resource):
 
 class BrowseridAuthenticationResource(Resource):
     def render_GET(self, request):
-        try:
-            email = furnishRequestEmail(request)
-        except UnverifiedPeer:
-            email = None
         root = tags.head(
             tags.script(src='https://login.persona.org/authentication_api.js'),
-            tags.script('var cert_email = %s;' % (json.dumps(email),)),
-            tags.script(AUTHENTICATION_JS))
+            certEmailScriptTag(request),
+            tags.script(JS['authentication.js']))
         return renderElement(request, root)
 
 class BrowseridProvisioningResource(Resource):
@@ -66,5 +71,6 @@ class BrowseridProvisioningResource(Resource):
     def render_GET(self, request):
         root = tags.head(
             tags.script(src='https://login.persona.org/provisioning_api.js'),
-            tags.script('navigator.id.raiseProvisioningFailure("user is not authenticated as target user")'))
+            certEmailScriptTag(request),
+            tags.script(JS['provisioning.js']))
         return renderElement(request, root)
