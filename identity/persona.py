@@ -74,3 +74,15 @@ class BrowseridProvisioningResource(Resource):
             certEmailScriptTag(request),
             tags.script(JS['provisioning.js']))
         return renderElement(request, root)
+
+    def render_POST(self, request):
+        parameters = json.load(request.content)
+        email = furnishRequestEmail(request)
+        assert parameters['email'] == email
+        token = {
+            'public-key': parameters['key'],
+            'principal': {'email': email},
+            'exp': min(60 * 60, parameters['duration']),
+            'iss': request.getRequestHostname(),
+        }
+        return sign(token, self.rsaKey)

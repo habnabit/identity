@@ -7,7 +7,7 @@ navigator.id.beginProvisioning(function (persona_email, cert_duration) {
   }
   navigator.id.genKeyPair(function (public_key) {
     public_key = JSON.parse(public_key);
-    var payload = {'key': public_key, 'duration': cert_duration};
+    var payload = {'key': public_key, 'email': persona_email, 'duration': cert_duration};
     xhr.open('POST', document.location.href, false);
     xhr.send(JSON.stringify(payload));
     if (xhr.status != 200) {
