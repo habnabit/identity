@@ -1,7 +1,7 @@
 from Crypto.PublicKey import RSA
 
 from identity.persona import BrowseridResource
-from identity.basic import WhoamiResource
+from identity.basic import PeerVerifier, WhoamiResource
 
 from twisted.application.internet import SSLServer
 from twisted.application.service import Application
@@ -33,11 +33,13 @@ for ca in ['ca.pem', 'sub.class1.server.ca.pem', 'sub.class1.client.ca.pem']:
 sslContextFactory = serverCert.options(*authorityCerts)
 sslContextFactory.requireCertificate = False
 
+verifier = PeerVerifier()
+
 root = Resource()
 wellKnown = Resource()
 root.putChild('.well-known', wellKnown)
-wellKnown.putChild('browserid', BrowseridResource(rsaKey))
-root.putChild('whoami', WhoamiResource())
+wellKnown.putChild('browserid', BrowseridResource(rsaKey, verifier))
+root.putChild('whoami', WhoamiResource(verifier))
 
 site = Site(root)
 

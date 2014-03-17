@@ -5,7 +5,7 @@ from twisted.python.filepath import FilePath
 from twisted.web.resource import Resource
 from twisted.web.template import tags, renderElement
 
-from identity.basic import furnishRequestEmail, UnverifiedPeer
+from identity.basic import UnverifiedPeer
 
 import base64
 import json
@@ -28,20 +28,21 @@ def sign(payload, key):
     signature = PKCS1_v1_5.new(key).sign(SHA256.new(signing_input))
     return signing_input + '.' + b64uencode(signature)
 
-def certEmailScriptTag(request):
+def certEmailScriptTag(verifier, request):
     try:
-        email = furnishRequestEmail(request)
+        email = verifier.furnishRequestEmail(request)
     except UnverifiedPeer:
         email = None
     return tags.script('var cert_email = %s;' % (json.dumps(email),))
 
 
 class BrowseridResource(Resource):
-    def __init__(self, rsaKey):
+    def __init__(self, rsaKey, verifier):
         Resource.__init__(self)
         self.rsaKey = rsaKey
-        self.putChild('authentication', BrowseridAuthenticationResource())
-        self.putChild('provisioning', BrowseridProvisioningResource(self.rsaKey))
+        self.verifier = verifier
+        self.putChild('authentication', BrowseridAuthenticationResource(verifier))
+        self.putChild('provisioning', BrowseridProvisioningResource(self.rsaKey, verifier))
 
     def render_GET(self, request):
         request.setHeader('content-type', 'application/json')
@@ -57,28 +58,33 @@ class BrowseridResource(Resource):
         return json.dumps(ret)
 
 class BrowseridAuthenticationResource(Resource):
+    def __init__(self, verifier):
+        Resource.__init__(self)
+        self.verifier = verifier
+
     def render_GET(self, request):
         root = tags.head(
             tags.script(src='https://login.persona.org/authentication_api.js'),
-            certEmailScriptTag(request),
+            certEmailScriptTag(self.verifier, request),
             tags.script(JS['authentication.js']))
         return renderElement(request, root)
 
 class BrowseridProvisioningResource(Resource):
-    def __init__(self, rsaKey):
+    def __init__(self, rsaKey, verifier):
         Resource.__init__(self)
         self.rsaKey = rsaKey
+        self.verifier = verifier
 
     def render_GET(self, request):
         root = tags.head(
             tags.script(src='https://login.persona.org/provisioning_api.js'),
-            certEmailScriptTag(request),
+            certEmailScriptTag(self.verifier, request),
             tags.script(JS['provisioning.js']))
         return renderElement(request, root)
 
     def render_POST(self, request):
         parameters = json.load(request.content)
-        email = furnishRequestEmail(request)
+        email = self.verifier.furnishRequestEmail(request)
         assert parameters['email'] == email
         now = int(time.time())
         token = {
